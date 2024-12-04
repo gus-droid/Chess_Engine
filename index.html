@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chessboard</title>
-  
+
   <!-- Link to Chessboard.js CSS -->
   <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
 
@@ -12,12 +12,12 @@
   <script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
 
   <!-- Include Chessboard.js -->
-  <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
 
-  <!-- Import Chess.js from local libs directory -->
+  <!-- Import Chess.js -->
   <script type="module">
-    import { Chess } from './libs/chess.js';  // Ensure the path is correct
-    window.Chess = Chess; // Make sure Chess is globally accessible
+    import { Chess } from './libs/chess.js';
+    window.Chess = Chess; // Make Chess globally accessible
   </script>
 
   <style>
@@ -25,12 +25,70 @@
       width: 500px;
       margin: 20px auto;
     }
+
+    /* Promotion options */
+    #promotion-container {
+      display: none;
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      color: white;
+      border-radius: 5px;
+    }
+
+    select {
+      font-size: 18px;
+      padding: 5px;
+    }
+
+    /* Selection buttons */
+    #color-selection {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #color-selection button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    /* Game result message */
+    #game-result {
+      text-align: center;
+      font-size: 18px;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
+  <!-- Color selection buttons -->
+  <div id="color-selection">
+    <button id="white-button">Play as White</button>
+    <button id="black-button">Play as Black</button>
+  </div>
+
+  <!-- Chessboard -->
   <div id="myBoard"></div>
 
-  <!-- Include your custom board.js file -->
+  <!-- Game Result Message -->
+  <div id="game-result"></div>
+
+  <!-- Promotion options container (hidden by default) -->
+  <div id="promotion-container">
+    <label for="promotion-options">Choose promotion piece:</label>
+    <select id="promotion-options">
+      <option value="q">Queen</option>
+      <option value="r">Rook</option>
+      <option value="b">Bishop</option>
+      <option value="n">Knight</option>
+    </select>
+  </div>
+
+  <!-- Include the custom board.js file -->
   <script type="module" src="board.js"></script>
 </body>
 </html>

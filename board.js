@@ -1,70 +1,150 @@
-// Configuration for Chessboard.js
-var config = {
-  pieceTheme: 'img/chesspieces/wikipedia/{piece}.png',  // pieces png
-  position: 'start',  // Set initial position
-  draggable: true,  // Make pieces draggable and drop off when taken
-  dropOffBoard: 'snapback', // 
-  showNotation: true,
-  onDrop: handleMove  // Trigger move when piece is dropped
-};
+let game = new Chess();
+let board = null;
+let userColor = 'w'; // Default to White
+let promotionPiece = 'q'; // Default to Queen for promotion
 
-// Create chess board with config settings
-var board = Chessboard('myBoard', config);
+// Initialize the chessboard
+function initializeBoard() {
+  const config = {
+    draggable: true,
+    dropOffBoard: 'snapback', // Pieces returned to original positions if dropped off the board
+    sparePieces: true,
+    position: 'start', // The starting position for the chessboard
+    orientation: userColor === 'w' ? 'white' : 'black', // Set orientation based on user color
+    onDragStart: onDragStart,
+    onDrop: onDrop,
+    onMouseoutSquare: onMouseoutSquare,
+    onMouseoverSquare: onMouseoverSquare,
+    onSnapEnd: onSnapEnd
+  };
 
-// Initialize chess.js game engine
-const chess = new Chess();
-
-// Update the board position based on chess.js game state
-function updateBoard() {
-  board.position(chess.fen());  // Update board position using FEN string
+  board = Chessboard('myBoard', config);
+  game.reset();
+  if (userColor === 'b') {
+    window.setTimeout(makeRandomMove, 250); // If user plays as black, computer moves first
+  }
 }
 
-// Move Logic 
-function handleMove(source, target) {
-  if (!selectedSquare) {
-    // Only allow moving your own piece
-    if ((chess.turn() === 'w' && chess.get(source).color !== 'w') ||
-        (chess.turn() === 'b' && chess.get(source).color !== 'b')) {
-      return 'snapback';  // If trying to move the opponent's piece, don't allow the move
-    }
-    
-    selectedSquare = source;  // Store the square of the selected piece
-    return 'drag';  // Allow dragging the piece
+// Function to handle piece drag start (prevents dragging after game over or on opponent's pieces)
+function onDragStart (source, piece, position, orientation) {
+  // Do not pick up pieces if the game is over
+  if (game.isGameOver()) return false;
+
+  // Only allow the player to move their own pieces (White pieces for user)
+  if ((userColor === 'w' && piece.search(/^b/) !== -1) || (userColor === 'b' && piece.search(/^w/) !== -1)) {
+    return false; // Don't allow the user to drag opponent's pieces
+  }
+}
+
+// Handle when a piece is dropped
+function onDrop(source, target) {
+  // If the source and target squares are the same, the piece is just being "unclicked" and returned to its original position
+  if (source === target) {
+    return; // Don't move the piece if it was dropped back in the same place
   }
 
-  // If the same square is clicked again, cancel the move (unclick the piece)
-  if (source === selectedSquare) {
-    selectedSquare = null;  // Unselect the piece
-    return 'snapback';  // Return the piece to its original position
-  }
+  // Perform the move
+  var move = game.move({
+    from: source,
+    to: target,
+    promotion: promotionPiece // Use the selected promotion piece
+  });
 
-  // Attempt to make the move in the chess.js game engine
-  const move = chess.move({ from: source, to: target });
-
-  // If the move is invalid (null), snap the piece back to its original position
+  // If the move is invalid, return the piece to its original position
   if (move === null) {
-    selectedSquare = null;  // Reset the selected square
-    return 'snapback';  // If move is invalid, snap piece back
+    return 'snapback'; // Invalid move, snap it back
   }
 
-  // If the move is valid, update the board
-  updateBoard();
-  selectedSquare = null;  // Reset selected square after a valid move
-
-  // Allow further moves after a valid one
-  return 'snapback';
+  // Check for game over
+  if (game.isGameOver()) {
+    updateGameResult();
+  } else {
+    // After the player's move, make a random move for the computer
+    window.setTimeout(makeRandomMove, 250);
+  }
 }
 
-// // Function to automatically play the game using chess.js
-// function playGame() {
-//   while (!chess.isGameOver()) {
-//     const moves = chess.legalMoves();
-//     const move = moves[Math.floor(Math.random() * moves.length)];
-//     chess.move(move);
-//     updateBoard();  // Update the chessboard after each move
-//   }
-//   console.log(chess.pgn());  // Output the final game in PGN format
-// }
+// Promotion options when pawn reaches the last rank
+function showPromotionOptions(square) {
+  const rank = square.charAt(1); // Extract the rank (second character of the square)
+  const piece = game.get(square).type; // Get the piece type at the square
 
-// Start the chessboard with the initial position
-updateBoard();  // Display the starting position
+  if (piece === 'p' && (rank === '8' || rank === '1')) {
+    // Show the promotion UI for the user
+    const promotionContainer = document.getElementById('promotion-container');
+    promotionContainer.style.display = 'block';
+    promotionContainer.setAttribute('data-square', square); // Store the square for later use
+  }
+}
+
+// Handle promotion piece selection
+document.getElementById('promotion-options').addEventListener('change', function (event) {
+  promotionPiece = event.target.value;
+  document.getElementById('promotion-container').style.display = 'none'; // Hide promotion options after selection
+  const square = document.getElementById('promotion-container').getAttribute('data-square');
+  // Complete the move with the selected promotion piece
+  game.move({ from: square, to: square, promotion: promotionPiece });
+  board.position(game.fen());
+  if (game.isGameOver()) {
+    updateGameResult();
+  } else {
+    window.setTimeout(makeRandomMove, 250); // Make random move for AI after user's turn
+  }
+});
+
+// Make a random move for the opponent (AI)
+function makeRandomMove() {
+  const possibleMoves = game.moves();
+
+  // If there are no moves, the game is over
+  if (possibleMoves.length === 0) return;
+
+  const randomIdx = Math.floor(Math.random() * possibleMoves.length);
+  game.move(possibleMoves[randomIdx]);
+  board.position(game.fen()); // Update board with the new move
+}
+
+// Update the board after a move or promotion
+function onSnapEnd() {
+  board.position(game.fen());
+  // If promotion happens, show the promotion options
+  showPromotionOptions(game.history({ verbose: true }).pop().to);
+}
+
+// Handle mouseover on a square (highlight the square)
+function onMouseoverSquare(square) {
+  const moves = game.moves({ square: square, verbose: true });
+  renderMoveHistory(moves);
+}
+
+// Handle mouseout from a square (reset highlighting)
+function onMouseoutSquare(square) {
+  renderMoveHistory([]);
+}
+
+// Update the game result message
+function updateGameResult() {
+  const resultElement = document.getElementById('game-result');
+  if (game.isCheckmate()) {
+    resultElement.innerText = `${game.turn() === 'w' ? 'Black' : 'White'} Wins by Checkmate`;
+  } else if (game.isStalemate()) {
+    resultElement.innerText = 'Draw by Stalemate';
+  } else if (game.isInsufficientMaterial()) {
+    resultElement.innerText = 'Draw by Insufficient Material';
+  } else if (game.isDraw()) {
+    resultElement.innerText = 'Draw by 50-move Rule';
+  } else if (game.isThreefoldRepetition()) {
+    resultElement.innerText = 'Draw by Threefold Repetition';
+  }
+}
+
+// Initialize the chessboard with color selection
+document.getElementById('white-button').addEventListener('click', () => {
+  userColor = 'w';
+  initializeBoard();
+});
+
+document.getElementById('black-button').addEventListener('click', () => {
+  userColor = 'b';
+  initializeBoard();
+});
